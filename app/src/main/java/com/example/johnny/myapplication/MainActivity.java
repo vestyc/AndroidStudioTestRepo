@@ -8,7 +8,7 @@ import android.widget.Button;
 
 public class MainActivity extends ActionBarActivity {
 
-    Button uploadButton;
+    Button uploadButton, huehue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -17,6 +17,7 @@ public class MainActivity extends ActionBarActivity {
 
         //setup button
         uploadButton = (Button) findViewById(R.id.testButton);
+        huehue = (Button) findViewById(R.id.testButton);
     }
 
     public void buttonPress(View view) {

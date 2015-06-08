@@ -1,21 +1,27 @@
 package com.example.johnny.myapplication;
 
+import com.loopj.android.http.*;
+
+import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.provider.MediaStore;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import org.apache.http.Header;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -31,7 +37,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 
-public class MainActivity extends ActionBarActivity {
+public class OtherTest extends Activity {
 
     Button uploadButton;
     TextView display;
@@ -44,24 +50,20 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_other_test);
 
         //setup widgets
-        uploadButton = (Button) findViewById(R.id.testButton);
-        display = (TextView) findViewById(R.id.textView);
+        uploadButton = (Button) findViewById(R.id.testButton2);
+        display = (TextView) findViewById(R.id.textView2);
     }
 
     public void buttonPress(View view) {
 
-        if(R.id.testButton == view.getId()) {
+        if(R.id.testButton2 == view.getId()) {
             //upload test image into database
             Intent gallery = new Intent(Intent.ACTION_PICK,
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             startActivityForResult(gallery, RESULT_LOAD_IMG);
-        }
-        else if(R.id.gotoAnotherButton == view.getId()) {
-            Intent otherActivity = new Intent(MainActivity.this, OtherTest.class);
-            startActivity(otherActivity);
         }
     }
 
@@ -86,7 +88,7 @@ public class MainActivity extends ActionBarActivity {
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
                 String imgDecodableString = cursor.getString(columnIndex);
                 cursor.close();
-                ImageView imgView = (ImageView) findViewById(R.id.imageView);
+                ImageView imgView = (ImageView) findViewById(R.id.imageView2);
 
                 // Set the Image in ImageView after decoding the String
                 BitmapFactory.Options options = new BitmapFactory.Options();
@@ -95,9 +97,6 @@ public class MainActivity extends ActionBarActivity {
                 bitmap = BitmapFactory.decodeFile(imgDecodableString);
 
                 imgView.setImageBitmap(bitmap);
-
-                /************Writing image to local android memory************/
-                File file = new File(this.getFilesDir(), "testimage.png");
 
                 sendImageToPHP();
             }
@@ -110,7 +109,7 @@ public class MainActivity extends ActionBarActivity {
     }
 
     //Encodes a bitmap (separate thread), then sends to PHP webservice
-    public void sendImageToPHP() throws IOException{
+    public void sendImageToPHP() throws IOException {
 
         new AsyncTask<Void, Void, String>() {
 
@@ -124,55 +123,6 @@ public class MainActivity extends ActionBarActivity {
                 //encoding Image to a String
                 outputToSend = Base64.encodeToString(byteData, 0);
 
-                URL url;
-                HttpURLConnection urlConnection = null;
-
-                try {
-                    url = new URL(webserviceURL);
-                    urlConnection = (HttpURLConnection) url.openConnection();
-                    //urlConnection.connect();
-
-                    urlConnection.setDoOutput(true);
-                    urlConnection.setChunkedStreamingMode(0);
-
-                    //setup headers
-                    urlConnection.setInstanceFollowRedirects(false);
-                    urlConnection.setRequestMethod("POST");
-                    urlConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                    //urlConnection.setRequestProperty("Content-Type", "image/png");
-                    urlConnection.setRequestProperty("charset", "utf-8");
-
-                    //setup image data
-                    String parametersString = "image=" + outputToSend;
-                    //String parametersString = "image=" + "herp derp test string hehe";
-                    byte[] postData = parametersString.getBytes(StandardCharsets.UTF_8);
-                    //int postDataLength = postData.length;
-                    //urlConnection.setRequestProperty("Content-Length", Integer.toString(postDataLength));
-                    OutputStream out = new BufferedOutputStream(urlConnection.getOutputStream());
-                    out.write(postData, 0, postData.length);
-
-                    InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-                    byte[] inputBuff = new byte[300];
-                    in.read(inputBuff);
-                }
-                catch(IndexOutOfBoundsException e) {
-                    Log.e("BuffErr", "Index out of bounds", e);
-                }
-                catch(MalformedURLException e) {
-                    Log.e("URL Error", "Trouble creating URL", e);
-                }
-                catch(ProtocolException e) {
-                    Log.e("Protocol Exception", "Request Method broke.", e);
-                }
-                catch(NullPointerException e) {
-                    Log.e("Null Pointer", "Null Pointer Exception", e);
-                }
-                catch(IOException e) {
-                    Log.e("Connection Error", "Something wrong in sendImageToPHP", e);
-                }
-                finally {
-                    urlConnection.disconnect();
-                }
                 return "";
             }
 
@@ -180,8 +130,31 @@ public class MainActivity extends ActionBarActivity {
             @Override
             protected void onPostExecute(String result) {
 
-
+                asyncSending();
             }
         }.execute(null, null, null);
+    }
+
+    public void asyncSending() {
+
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.get(this.webserviceURL, new AsyncHttpResponseHandler() {
+
+            @Override
+            public void onStart() {
+                RequestParams params = new RequestParams();
+                params.put("image", outputToSend);
+            }
+
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+
+            }
+        });
     }
 }

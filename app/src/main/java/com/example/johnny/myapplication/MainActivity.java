@@ -1,13 +1,16 @@
 package com.example.johnny.myapplication;
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
+
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.provider.MediaStore;
-import android.support.v7.app.ActionBarActivity;
+import android.app.Activity;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
@@ -17,21 +20,12 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
+import org.apache.http.Header;
+
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends Activity {
 
     Button uploadButton;
     TextView display;
@@ -96,10 +90,11 @@ public class MainActivity extends ActionBarActivity {
 
                 imgView.setImageBitmap(bitmap);
 
-                /************Writing image to local android memory************/
-                File file = new File(this.getFilesDir(), "testimage.png");
-
-                sendImageToPHP();
+                ByteArrayOutputStream tempStream = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, tempStream);
+                byte[] tba = tempStream.toByteArray();
+                this.outputToSend = Base64.encodeToString(tba, 0);
+                differentHTTP();
             }
         }
         catch (Exception e) {
@@ -109,79 +104,26 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
-    //Encodes a bitmap (separate thread), then sends to PHP webservice
-    public void sendImageToPHP() throws IOException{
+    //using loopj http
+    public void differentHTTP() {
 
-        new AsyncTask<Void, Void, String>() {
+        //setting up http parameters
+        RequestParams params = new RequestParams();
+        params.put("image", this.outputToSend);
 
-            @Override
-            protected String doInBackground(Void... params) {
+        //create http connection with parameters
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.post(this.webserviceURL, params,
+                new AsyncHttpResponseHandler() {
+                    @Override
+                    public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                        //success message
+                    }
 
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                //compressing image
-                bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream);
-                byte[] byteData = stream.toByteArray();
-                //encoding Image to a String
-                outputToSend = Base64.encodeToString(byteData, 0);
-
-                URL url;
-                HttpURLConnection urlConnection = null;
-
-                try {
-                    url = new URL(webserviceURL);
-                    urlConnection = (HttpURLConnection) url.openConnection();
-                    //urlConnection.connect();
-
-                    urlConnection.setDoOutput(true);
-                    urlConnection.setChunkedStreamingMode(0);
-
-                    //setup headers
-                    urlConnection.setInstanceFollowRedirects(false);
-                    urlConnection.setRequestMethod("POST");
-                    urlConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                    //urlConnection.setRequestProperty("Content-Type", "image/png");
-                    urlConnection.setRequestProperty("charset", "utf-8");
-
-                    //setup image data
-                    String parametersString = "image=" + outputToSend;
-                    //String parametersString = "image=" + "herp derp test string hehe";
-                    byte[] postData = parametersString.getBytes(StandardCharsets.UTF_8);
-                    //int postDataLength = postData.length;
-                    //urlConnection.setRequestProperty("Content-Length", Integer.toString(postDataLength));
-                    OutputStream out = new BufferedOutputStream(urlConnection.getOutputStream());
-                    out.write(postData, 0, postData.length);
-
-                    InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-                    byte[] inputBuff = new byte[300];
-                    in.read(inputBuff);
-                }
-                catch(IndexOutOfBoundsException e) {
-                    Log.e("BuffErr", "Index out of bounds", e);
-                }
-                catch(MalformedURLException e) {
-                    Log.e("URL Error", "Trouble creating URL", e);
-                }
-                catch(ProtocolException e) {
-                    Log.e("Protocol Exception", "Request Method broke.", e);
-                }
-                catch(NullPointerException e) {
-                    Log.e("Null Pointer", "Null Pointer Exception", e);
-                }
-                catch(IOException e) {
-                    Log.e("Connection Error", "Something wrong in sendImageToPHP", e);
-                }
-                finally {
-                    urlConnection.disconnect();
-                }
-                return "";
-            }
-
-            //send result to PHP webservice
-            @Override
-            protected void onPostExecute(String result) {
-
-
-            }
-        }.execute(null, null, null);
+                    @Override
+                    public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+                        //handle error codes
+                    }
+                });
     }
 }

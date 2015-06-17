@@ -1,17 +1,16 @@
 package com.example.johnny.myapplication;
 
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.RequestParams;
+import com.loopj.android.http.*;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
-import android.provider.MediaStore;
-import android.app.Activity;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -22,10 +21,21 @@ import android.widget.Toast;
 
 import org.apache.http.Header;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 
-public class MainActivity extends Activity {
+public class OtherTest extends Activity {
 
     Button uploadButton;
     TextView display;
@@ -38,24 +48,20 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_other_test);
 
         //setup widgets
-        uploadButton = (Button) findViewById(R.id.testButton);
-        display = (TextView) findViewById(R.id.textView);
+        uploadButton = (Button) findViewById(R.id.testButton2);
+        display = (TextView) findViewById(R.id.textView2);
     }
 
     public void buttonPress(View view) {
 
-        if(R.id.testButton == view.getId()) {
+        if(R.id.testButton2 == view.getId()) {
             //upload test image into database
             Intent gallery = new Intent(Intent.ACTION_PICK,
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             startActivityForResult(gallery, RESULT_LOAD_IMG);
-        }
-        else if(R.id.gotoAnotherButton == view.getId()) {
-            Intent otherActivity = new Intent(MainActivity.this, OtherTest.class);
-            startActivity(otherActivity);
         }
     }
 
@@ -80,7 +86,7 @@ public class MainActivity extends Activity {
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
                 String imgDecodableString = cursor.getString(columnIndex);
                 cursor.close();
-                ImageView imgView = (ImageView) findViewById(R.id.imageView);
+                ImageView imgView = (ImageView) findViewById(R.id.imageView2);
 
                 // Set the Image in ImageView after decoding the String
                 BitmapFactory.Options options = new BitmapFactory.Options();
@@ -90,11 +96,7 @@ public class MainActivity extends Activity {
 
                 imgView.setImageBitmap(bitmap);
 
-                ByteArrayOutputStream tempStream = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, tempStream);
-                byte[] tba = tempStream.toByteArray();
-                this.outputToSend = Base64.encodeToString(tba, 0);
-                differentHTTP();
+                sendImageToPHP();
             }
         }
         catch (Exception e) {
@@ -104,26 +106,53 @@ public class MainActivity extends Activity {
         }
     }
 
-    //using loopj http
-    public void differentHTTP() {
+    //Encodes a bitmap (separate thread), then sends to PHP webservice
+    public void sendImageToPHP() throws IOException {
 
-        //setting up http parameters
-        RequestParams params = new RequestParams();
-        params.put("image", this.outputToSend);
+        new AsyncTask<Void, Void, String>() {
 
-        //create http connection with parameters
+            @Override
+            protected String doInBackground(Void... params) {
+
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                //compressing image
+                bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream);
+                byte[] byteData = stream.toByteArray();
+                //encoding Image to a String
+                outputToSend = Base64.encodeToString(byteData, 0);
+
+                return "";
+            }
+
+            //send result to PHP webservice
+            @Override
+            protected void onPostExecute(String result) {
+
+                asyncSending();
+            }
+        }.execute(null, null, null);
+    }
+
+    public void asyncSending() {
+
         AsyncHttpClient client = new AsyncHttpClient();
-        client.post(this.webserviceURL, params,
-                new AsyncHttpResponseHandler() {
-                    @Override
-                    public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                        //success message
-                    }
+        client.get(this.webserviceURL, new AsyncHttpResponseHandler() {
 
-                    @Override
-                    public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                        //handle error codes
-                    }
-                });
+            @Override
+            public void onStart() {
+                RequestParams params = new RequestParams();
+                params.put("image", outputToSend);
+            }
+
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+
+            }
+        });
     }
 }

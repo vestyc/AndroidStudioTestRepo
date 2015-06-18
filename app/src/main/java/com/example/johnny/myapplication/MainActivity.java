@@ -1,21 +1,33 @@
 package com.example.johnny.myapplication;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.RecoverySystem;
 import android.provider.MediaStore;
-import android.support.v7.app.ActionBarActivity;
+import android.app.Activity;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.util.Base64;
+import android.util.Config;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -31,7 +43,9 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends Activity {
+
+    private static final String TAG = MainActivity.class.getSimpleName();
 
     Button uploadButton;
     TextView display;
@@ -39,7 +53,7 @@ public class MainActivity extends ActionBarActivity {
     Bitmap bitmap;
     String outputToSend;
     private final int RESULT_LOAD_IMG = 213;
-    private final String webserviceURL = "http://10.0.2.2:81/GitSQL/sendimage.php";
+    private final String webserviceURL = "http://10.0.0.2/GitSQL/sendimage.php";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,7 +111,7 @@ public class MainActivity extends ActionBarActivity {
                 imgView.setImageBitmap(bitmap);
 
                 /************Writing image to local android memory************/
-                File file = new File(this.getFilesDir(), "testimage.png");
+               // File file = new File(this.getFilesDir(), "testimage.png");
 
                 sendImageToPHP();
             }
@@ -117,12 +131,16 @@ public class MainActivity extends ActionBarActivity {
             @Override
             protected String doInBackground(Void... params) {
 
+                /*
+
                 ByteArrayOutputStream stream = new ByteArrayOutputStream();
                 //compressing image
-                bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream);
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
                 byte[] byteData = stream.toByteArray();
                 //encoding Image to a String
-                outputToSend = Base64.encodeToString(byteData, 0);
+                outputToSend = Base64.encodeToString(byteData,Base64.DEFAULT);
+
+
 
                 URL url;
                 HttpURLConnection urlConnection = null;
@@ -136,11 +154,11 @@ public class MainActivity extends ActionBarActivity {
                     urlConnection.setChunkedStreamingMode(0);
 
                     //setup headers
-                    urlConnection.setInstanceFollowRedirects(false);
+                    //urlConnection.setInstanceFollowRedirects(false);
                     urlConnection.setRequestMethod("POST");
                     urlConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                     //urlConnection.setRequestProperty("Content-Type", "image/png");
-                    urlConnection.setRequestProperty("charset", "utf-8");
+                    urlConnection.setRequestProperty("charset", "text/plain; charset=utf-8");
 
                     //setup image data
                     String parametersString = "image=" + outputToSend;
@@ -148,10 +166,10 @@ public class MainActivity extends ActionBarActivity {
                     byte[] postData = parametersString.getBytes(StandardCharsets.UTF_8);
                     //int postDataLength = postData.length;
                     //urlConnection.setRequestProperty("Content-Length", Integer.toString(postDataLength));
-                    OutputStream out = new BufferedOutputStream(urlConnection.getOutputStream());
+                    BufferedOutputStream out = new BufferedOutputStream(urlConnection.getOutputStream());
                     out.write(postData, 0, postData.length);
 
-                    InputStream in = new BufferedInputStream(urlConnection.getInputStream());
+                   /* InputStream in = new BufferedInputStream(urlConnection.getInputStream());
                     byte[] inputBuff = new byte[300];
                     in.read(inputBuff);
                 }
@@ -172,16 +190,87 @@ public class MainActivity extends ActionBarActivity {
                 }
                 finally {
                     urlConnection.disconnect();
-                }
-                return "";
+                }*/
+                return null;
             }
 
             //send result to PHP webservice
             @Override
             protected void onPostExecute(String result) {
+                Log.e(TAG, "Response from server: " + result);
 
+                // showing the server response in an alert dialog
+                showAlert(result);
+
+                super.onPostExecute(result);
+
+            }
+
+            @SuppressWarnings("deprecation")
+            private String uploadFile() {
+                String responseString = null;
+
+                HttpClient httpclient = new DefaultHttpClient();
+                HttpPost httppost = new HttpPost(webserviceURL);
+
+                try {
+                    AndroidMultiPartEntity entity = new AndroidMultiPartEntity(
+                            new RecoverySystem.ProgressListener() {
+
+                                @Override
+                                public void transferred(long num) {
+                                    publishProgress((int) ((num / (float) totalSize) * 100));
+                                }
+                            });
+
+                    File sourceFile = new File(filePath);
+
+                    // Adding file data to http body
+                    entity.addPart("image", new FileBody(sourceFile));
+
+                    // Extra parameters if you want to pass to server
+                    entity.addPart("website",
+                            new StringBody("www.androidhive.info"));
+                    entity.addPart("email", new StringBody("abc@gmail.com"));
+
+                    totalSize = entity.getContentLength();
+                    httppost.setEntity(entity);
+
+                    // Making server call
+                    HttpResponse response = httpclient.execute(httppost);
+                    HttpEntity r_entity = response.getEntity();
+
+                    int statusCode = response.getStatusLine().getStatusCode();
+                    if (statusCode == 200) {
+                        // Server response
+                        responseString = EntityUtils.toString(r_entity);
+                    } else {
+                        responseString = "Error occurred! Http Status Code: "
+                                + statusCode;
+                    }
+
+                } catch (ClientProtocolException e) {
+                    responseString = e.toString();
+                } catch (IOException e) {
+                    responseString = e.toString();
+                }
+
+                return responseString;
 
             }
         }.execute(null, null, null);
+    }
+
+    private void showAlert(String message) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(message).setTitle("Response from Servers")
+                .setCancelable(false)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        // do nothing
+                    }
+                });
+        AlertDialog alert = builder.create();
+        alert.show();
     }
 }

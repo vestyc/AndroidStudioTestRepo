@@ -4,13 +4,13 @@ import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.provider.MediaStore;
-import android.app.Activity;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
@@ -21,8 +21,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.apache.http.Header;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 
 
 public class MainActivity extends Activity {
@@ -34,6 +37,7 @@ public class MainActivity extends Activity {
     String outputToSend;
     private final int RESULT_LOAD_IMG = 213;
     private final String webserviceURL = "http://10.0.2.2:81/GitSQL/sendimage.php";
+    private final String getDataURL = "http://10.0.2.2:81/GitSQL/getdata.php";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +56,9 @@ public class MainActivity extends Activity {
             Intent gallery = new Intent(Intent.ACTION_PICK,
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             startActivityForResult(gallery, RESULT_LOAD_IMG);
+        }
+        else if(R.id.getButton == view.getId()) {
+            this.getDataFromServer();
         }
         else if(R.id.gotoAnotherButton == view.getId()) {
             Intent otherActivity = new Intent(MainActivity.this, OtherTest.class);
@@ -123,6 +130,51 @@ public class MainActivity extends Activity {
                     @Override
                     public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
                         //handle error codes
+                    }
+                });
+    }
+
+    public void getDataFromServer() {
+
+        RequestParams params = new RequestParams();
+
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.post(this.getDataURL, params,
+                new AsyncHttpResponseHandler() {
+                    @Override
+                    public void onStart(){
+
+                        TextView view = (TextView) findViewById(R.id.textView);
+                        view.setText("Starting connection...");
+                    }
+                    @Override
+                    public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+
+                        //parse json data
+                        JSONObject jsonObject;
+                        try {
+                            jsonObject = new JSONObject(new String(responseBody, StandardCharsets.UTF_8));
+                            byte[] decodedData = Base64.decode(jsonObject.getString("data"), Base64.DEFAULT);
+                            Bitmap image = BitmapFactory.decodeByteArray(decodedData, 0, decodedData.length);
+
+                            ImageView imView = (ImageView) findViewById(R.id.imageView);
+                            imView.setImageBitmap(image);
+
+                            TextView txtView = (TextView) findViewById(R.id.textView);
+                            txtView.setText("image name: " + jsonObject.getString("name"));
+                            txtView.append("\ndate added: " + jsonObject.getInt("date"));
+
+                        }catch(JSONException e) {
+                            Log.e("JSONException", "JSONException was thrown", e);
+                            return;
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+
+                        TextView view = (TextView) findViewById(R.id.textView);
+                        view.setText("Failure :c");
                     }
                 });
     }

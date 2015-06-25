@@ -21,8 +21,20 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.InputStream;
 
 
 public class MainActivity extends Activity {
@@ -32,8 +44,10 @@ public class MainActivity extends Activity {
 
     Bitmap bitmap;
     String outputToSend;
+    String fileName;
     private final int RESULT_LOAD_IMG = 213;
-    private final String webserviceURL = "http://10.0.2.2:81/GitSQL/sendimage.php";
+    private final String webserviceURL = "http://192.168.0.102:80/GitSQL/sendimage.php";
+    private final String webserviceURL2 = "http://192.168.0.102:80/GitSQL/sendimage2.php";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +84,11 @@ public class MainActivity extends Activity {
                 Uri selectedImage = data.getData();
                 String[] filePathColumn = {MediaStore.Images.Media.DATA};
 
+                //Code to get the filename of the image
+                File f = new File("" + selectedImage);
+
+                fileName = f.getName();
+
 
                 // Get the cursor
                 Cursor cursor = getContentResolver().query(selectedImage,
@@ -95,6 +114,7 @@ public class MainActivity extends Activity {
                 byte[] tba = tempStream.toByteArray();
                 this.outputToSend = Base64.encodeToString(tba, 0);
                 differentHTTP();
+                //sendJson();
             }
         }
         catch (Exception e) {
@@ -125,5 +145,43 @@ public class MainActivity extends Activity {
                         //handle error codes
                     }
                 });
+    }
+
+    @SuppressWarnings("deprecation")
+    public void sendJson() {
+        try {
+            JSONObject json = new JSONObject();
+            json.put("image", this.outputToSend);
+            json.put("FileName", fileName);
+            HttpParams httpParams = new BasicHttpParams();
+            HttpConnectionParams.setConnectionTimeout(httpParams,
+                    1000);
+            HttpConnectionParams.setSoTimeout(httpParams, 1000);
+            HttpClient client = new DefaultHttpClient(httpParams);
+            //
+            //String url = "http://10.0.2.2:8080/sample1/webservice2.php?" +
+            //             "json={\"UserName\":1,\"FullName\":2}";
+            String url = webserviceURL2;
+
+            HttpPost request = new HttpPost(url);
+            request.setEntity(new ByteArrayEntity(json.toString().getBytes(
+                    "UTF8")));
+            request.setHeader("json", json.toString());
+            HttpResponse response = client.execute(request);
+            HttpEntity entity = response.getEntity();
+            // If the response does not enclose an entity, there is no need
+            if (entity != null) {
+                InputStream instream = entity.getContent();
+
+                String result = "NULL";
+                Log.i("Read from server", result);
+                Toast.makeText(this,  result,
+                        Toast.LENGTH_LONG).show();
+            }
+        } catch (Throwable t) {
+            Toast.makeText(this, "Request failed: " + t.toString(),
+                    Toast.LENGTH_LONG).show();
+        }
+
     }
 }

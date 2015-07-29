@@ -20,12 +20,8 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".OtherTest"
-            android:label="@string/title_activity_other_test"
-            android:parentActivityName=".MainActivity" >
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.example.johnny.myapplication.MainActivity" />
+            android:name=".MainInterface"
+            android:label="@string/title_activity_main_interface" >
         </activity>
     </application>
 

@@ -4,13 +4,13 @@ import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.provider.MediaStore;
-import android.app.Activity;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
@@ -36,18 +36,29 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+
+
 
 public class MainActivity extends Activity {
 
     Button uploadButton;
+    Button otherTest;
     TextView display;
 
     Bitmap bitmap;
     String outputToSend;
     String fileName;
+    final Integer index = 0;
     private final int RESULT_LOAD_IMG = 213;
-    private final String webserviceURL = "http://192.168.0.102:80/GitSQL/sendimage.php";
-    private final String webserviceURL2 = "http://192.168.0.102:80/GitSQL/sendimage2.php";
+
+    private final String webserviceURL = "http://10.0.2.2:80/GitSQL/sendimage.php";
+    private final String getDataURL = "http://10.0.2.2:80/GitSQL/getdata.php";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +66,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         //setup widgets
+        otherTest = (Button) findViewById(R.id.gotoAnotherButton);
         uploadButton = (Button) findViewById(R.id.testButton);
         display = (TextView) findViewById(R.id.textView);
     }
@@ -67,8 +79,11 @@ public class MainActivity extends Activity {
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             startActivityForResult(gallery, RESULT_LOAD_IMG);
         }
+        else if(R.id.getButton == view.getId()) {
+            this.getDataFromServer();
+        }
         else if(R.id.gotoAnotherButton == view.getId()) {
-            Intent otherActivity = new Intent(MainActivity.this, OtherTest.class);
+            Intent otherActivity = new Intent(MainActivity.this, MainInterface.class);
             startActivity(otherActivity);
         }
     }
@@ -114,7 +129,6 @@ public class MainActivity extends Activity {
                 byte[] tba = tempStream.toByteArray();
                 this.outputToSend = Base64.encodeToString(tba, 0);
                 differentHTTP();
-                //sendJson();
             }
         }
         catch (Exception e) {
@@ -130,6 +144,7 @@ public class MainActivity extends Activity {
         //setting up http parameters
         RequestParams params = new RequestParams();
         params.put("image", this.outputToSend);
+        params.put("name",fileName);
 
         //create http connection with parameters
         AsyncHttpClient client = new AsyncHttpClient();
@@ -147,41 +162,54 @@ public class MainActivity extends Activity {
                 });
     }
 
-    @SuppressWarnings("deprecation")
-    public void sendJson() {
-        try {
-            JSONObject json = new JSONObject();
-            json.put("image", this.outputToSend);
-            json.put("FileName", fileName);
-            HttpParams httpParams = new BasicHttpParams();
-            HttpConnectionParams.setConnectionTimeout(httpParams,
-                    1000);
-            HttpConnectionParams.setSoTimeout(httpParams, 1000);
-            HttpClient client = new DefaultHttpClient(httpParams);
-            //
-            //String url = "http://10.0.2.2:8080/sample1/webservice2.php?" +
-            //             "json={\"UserName\":1,\"FullName\":2}";
-            String url = webserviceURL2;
 
-            HttpPost request = new HttpPost(url);
-            request.setEntity(new ByteArrayEntity(json.toString().getBytes(
-                    "UTF8")));
-            request.setHeader("json", json.toString());
-            HttpResponse response = client.execute(request);
-            HttpEntity entity = response.getEntity();
-            // If the response does not enclose an entity, there is no need
-            if (entity != null) {
-                InputStream instream = entity.getContent();
 
-                String result = "NULL";
-                Log.i("Read from server", result);
-                Toast.makeText(this,  result,
-                        Toast.LENGTH_LONG).show();
-            }
-        } catch (Throwable t) {
-            Toast.makeText(this, "Request failed: " + t.toString(),
-                    Toast.LENGTH_LONG).show();
-        }
 
+
+    public void getDataFromServer() {
+
+        RequestParams params = new RequestParams();
+        params.put("index",index.toString());
+
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.post(this.getDataURL, params,
+                new AsyncHttpResponseHandler() {
+                    @Override
+                    public void onStart(){
+
+                        TextView view = (TextView) findViewById(R.id.textView);
+                        view.setText("Starting connection...");
+                    }
+                    @Override
+                    public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+
+                        //parse json data
+                        JSONObject jsonObject;
+                        try {
+                            jsonObject = new JSONObject(new String(responseBody, StandardCharsets.UTF_8));
+                            byte[] decodedData = Base64.decode(jsonObject.getString("data"), Base64.DEFAULT);
+                            Bitmap image = BitmapFactory.decodeByteArray(decodedData, 0, decodedData.length);
+
+                            ImageView imView = (ImageView) findViewById(R.id.imageView);
+                            imView.setImageBitmap(image);
+
+                            TextView txtView = (TextView) findViewById(R.id.textView);
+                            txtView.setText("image name: " + jsonObject.getString("name"));
+                            txtView.append("\ndate added: " + jsonObject.getInt("date"));
+
+                        }catch(JSONException e) {
+                            Log.e("JSONException", "JSONException was thrown", e);
+                            return;
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+
+                        TextView view = (TextView) findViewById(R.id.textView);
+                        view.setText("Failure :c");
+                    }
+                });
+        return;
     }
 }

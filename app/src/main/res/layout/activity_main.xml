@@ -39,6 +39,14 @@
             android:text="Upload Image to DB" />
 
         <Button
+            android:id="@+id/getButton"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:onClick="buttonPress"
+            android:text="Get data from server" />
+
+        <Button
             android:id="@+id/gotoAnotherButton"
             android:layout_width="200dp"
             android:layout_height="wrap_content"

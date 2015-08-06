@@ -30,6 +30,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -184,18 +185,25 @@ public class MainActivity extends Activity {
                     public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
 
                         //parse json data
-                        JSONObject jsonObject;
+                        JSONArray jsonArray;
+                        JSONObject jsonObject1;
+                        JSONObject jsonObject2;
+                        JSONObject jsonObject3;
+
                         try {
-                            jsonObject = new JSONObject(new String(responseBody, StandardCharsets.UTF_8));
-                            byte[] decodedData = Base64.decode(jsonObject.getString("data"), Base64.DEFAULT);
+                            jsonArray = new JSONArray((new String(responseBody,StandardCharsets.UTF_8)));
+                            jsonObject1 = jsonArray.getJSONObject(0);
+                            jsonObject2 = jsonArray.getJSONObject(1);
+                            jsonObject3 = jsonArray.getJSONObject(2);
+                            byte[] decodedData = Base64.decode(jsonObject1.getString("data"), Base64.DEFAULT);
                             Bitmap image = BitmapFactory.decodeByteArray(decodedData, 0, decodedData.length);
 
                             ImageView imView = (ImageView) findViewById(R.id.imageView);
                             imView.setImageBitmap(image);
 
                             TextView txtView = (TextView) findViewById(R.id.textView);
-                            txtView.setText("image name: " + jsonObject.getString("name"));
-                            txtView.append("\ndate added: " + jsonObject.getInt("date"));
+                            txtView.setText("image name: " + jsonObject1.getString("name"));
+                            txtView.append("\ndate added: " + jsonObject1.getInt("date"));
 
                         }catch(JSONException e) {
                             Log.e("JSONException", "JSONException was thrown", e);

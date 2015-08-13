@@ -17,22 +17,14 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class MainInterface extends AppCompatActivity implements OnJSONResponse{
+public class MainInterface extends AppCompatActivity {
 
     Integer index = 0;
-    JSONObject jsonObject;
-    JSONArray jsonArray;
-    String receptionString;
+
+    private final String getDataURL = "http://10.0.2.2:80/GitSQL/getdata.php";
 
     ListAdapter flyer_names;
     ListView lv;
-
-    AsyncHttpClient client = new AsyncHttpClient();
-    RequestParams params = new RequestParams();
-
-    OnJSONResponse callBack;
-
-    private final String getDataURL = "http://10.0.2.2:80/GitSQL/getdata.php";
 
     String names[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"};
 
@@ -41,14 +33,23 @@ public class MainInterface extends AppCompatActivity implements OnJSONResponse{
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_interface);
 
-        ImgGet imgGet = new ImgGet();
+        //initial listview setup with junk data
+        this.flyer_names = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, names);
+        this.lv = (ListView) findViewById(R.id.listView);
+        this.lv.setAdapter(flyer_names);
+    }
 
-        imgGet.getDataFromServer();
+    @Override
+    protected void onResume() {
+        super.onResume();
 
-        ListAdapter flyer_names = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, names);
-        ListView lv = (ListView) findViewById(R.id.listView);
-        lv.setAdapter(flyer_names);
+        //grabbing data from server, updating list view
+        RequestParams params = new RequestParams();
+        params.put("index", index);
+        DataResponseHandler responseHandler = new DataResponseHandler(names, (ArrayAdapter) flyer_names);
 
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.post(this.getDataURL, params, responseHandler);
     }
 
     @Override
@@ -71,25 +72,5 @@ public class MainInterface extends AppCompatActivity implements OnJSONResponse{
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    public void onJSONResponse(JSONArray response) {
-
-        JSONObject obj1, obj2, obj3;
-        try {
-            obj1 = response.getJSONObject(0);
-            names[0] = obj1.getString("name");
-            obj2 = response.getJSONObject(1);
-            names[1] = obj2.getString("name");
-            obj3 = response.getJSONObject(2);
-            names[2] = obj3.getString("name");
-
-            Toast.makeText(this, names[2], Toast.LENGTH_LONG).show();
-        }catch(JSONException e) {
-            Log.e("JSON err", "getJSONObject error", e);
-        }
-
-        //flyer_names = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, this.names);
-        //lv.setAdapter(flyer_names);
     }
 }

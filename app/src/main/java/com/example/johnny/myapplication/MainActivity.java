@@ -5,6 +5,8 @@ import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 
 import android.app.Activity;
+import android.app.Dialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -12,6 +14,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -56,9 +59,10 @@ public class MainActivity extends Activity {
     String fileName;
     final Integer index = 0;
     private final int RESULT_LOAD_IMG = 213;
+    private static final int REQUEST_IMG_CAPTURE = 214;
 
-    private final String webserviceURL = "http://10.0.2.2:80/GitSQL/sendimage.php";
-    private final String getDataURL = "http://10.0.2.2:80/GitSQL/getdata.php";
+    private final String webserviceURL = "http://192.168.0.101:80/GitSQL/sendimage.php";
+    private final String getDataURL = "http://192.168.0.101:80/GitSQL/getdata.php";
 
 
     @Override
@@ -74,27 +78,51 @@ public class MainActivity extends Activity {
 
     public void buttonPress(View view) {
 
-        if(R.id.testButton == view.getId()) {
+        if (R.id.testButton == view.getId()) {
             //upload test image into database
-            Intent gallery = new Intent(Intent.ACTION_PICK,
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            startActivityForResult(gallery, RESULT_LOAD_IMG);
+            AlertDialog.Builder chooser = new AlertDialog.Builder(this);
+            chooser.setTitle("Get Image from Gallery or Camera");
+            //chooser.setCancelable(true);
+            String[] image_sources = {"Camera", "Gallery"};
+            chooser.setItems(image_sources, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    if (which == 1) {
+                        Intent post_flyer = new Intent(Intent.ACTION_GET_CONTENT);
+                        post_flyer.setType("image/*");
+                        startActivityForResult(post_flyer, RESULT_LOAD_IMG);
+                    }
+
+                    if (which == 0) {
+                        Intent takePictureIntent = new Intent((MediaStore.ACTION_IMAGE_CAPTURE));
+                        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+                            startActivityForResult(takePictureIntent, REQUEST_IMG_CAPTURE);
+                        }
+                    }
+                }
+            });
+            AlertDialog dialog = chooser.create();
+            dialog.show();
         }
-        else if(R.id.getButton == view.getId()) {
+
+        else if (R.id.getButton == view.getId()) {
             this.getDataFromServer();
+
         }
-        else if(R.id.gotoAnotherButton == view.getId()) {
+
+        else if (R.id.gotoAnotherButton == view.getId()) {
             Intent otherActivity = new Intent(MainActivity.this, MainInterface.class);
             startActivity(otherActivity);
         }
     }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         try {
-            if(requestCode == RESULT_LOAD_IMG && resultCode == RESULT_OK && data != null) {
+            if (requestCode == RESULT_LOAD_IMG && resultCode == RESULT_OK && data != null) {
 
                 //save image URI
                 Uri selectedImage = data.getData();
@@ -130,9 +158,19 @@ public class MainActivity extends Activity {
                 byte[] tba = tempStream.toByteArray();
                 this.outputToSend = Base64.encodeToString(tba, 0);
                 differentHTTP();
+            } else if (requestCode == REQUEST_IMG_CAPTURE && resultCode == RESULT_OK) {
+                Bundle extras = data.getExtras();
+                Bitmap imageBit = (Bitmap) extras.get("data");
+                ImageView imgView = (ImageView) findViewById(R.id.imageView);
+                imgView.setImageBitmap(imageBit);
+
+                ByteArrayOutputStream tempStream = new ByteArrayOutputStream();
+                imageBit.compress(Bitmap.CompressFormat.PNG, 100, tempStream);
+                byte[] tba = tempStream.toByteArray();
+                this.outputToSend = Base64.encodeToString(tba, 0);
+                differentHTTP();
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
 
             Toast.makeText(this, "Error getting image from gallery", Toast.LENGTH_LONG).show();
             Log.e("MyTestingApp", "Error getting image from gallery", e);
@@ -145,7 +183,7 @@ public class MainActivity extends Activity {
         //setting up http parameters
         RequestParams params = new RequestParams();
         params.put("image", this.outputToSend);
-        params.put("name",fileName);
+        params.put("name", fileName);
 
         //create http connection with parameters
         AsyncHttpClient client = new AsyncHttpClient();
@@ -164,23 +202,21 @@ public class MainActivity extends Activity {
     }
 
 
-
-
-
     public void getDataFromServer() {
 
         RequestParams params = new RequestParams();
-        params.put("index",index.toString());
+        params.put("index", index.toString());
 
         AsyncHttpClient client = new AsyncHttpClient();
         client.post(this.getDataURL, params,
                 new AsyncHttpResponseHandler() {
                     @Override
-                    public void onStart(){
+                    public void onStart() {
 
                         TextView view = (TextView) findViewById(R.id.textView);
                         view.setText("Starting connection...");
                     }
+
                     @Override
                     public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
 
@@ -191,7 +227,7 @@ public class MainActivity extends Activity {
                         JSONObject jsonObject3;
 
                         try {
-                            jsonArray = new JSONArray((new String(responseBody,StandardCharsets.UTF_8)));
+                            jsonArray = new JSONArray((new String(responseBody, StandardCharsets.UTF_8)));
                             jsonObject1 = jsonArray.getJSONObject(0);
                             jsonObject2 = jsonArray.getJSONObject(1);
                             jsonObject3 = jsonArray.getJSONObject(2);
@@ -205,7 +241,7 @@ public class MainActivity extends Activity {
                             txtView.setText("image name: " + jsonObject1.getString("name"));
                             txtView.append("\ndate added: " + jsonObject1.getInt("date"));
 
-                        }catch(JSONException e) {
+                        } catch (JSONException e) {
                             Log.e("JSONException", "JSONException was thrown", e);
                             return;
                         }

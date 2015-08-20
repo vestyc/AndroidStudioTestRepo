@@ -25,7 +25,6 @@
             android:id="@+id/imageView2"/>
 
         <TextView
-            android:text="@string/hello_world"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/textView" />
@@ -37,6 +36,7 @@
             android:layout_marginTop="20dp"
             android:onClick="buttonPress"
             android:text="Upload Image to DB" />
+
 
         <Button
             android:id="@+id/getButton"

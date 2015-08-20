@@ -25,7 +25,7 @@ public class MainInterface extends AppCompatActivity {
 
     Integer index = 0;
 
-    private final String getDataURL = "http://10.0.2.2:80/GitSQL/getdata.php";
+    private final String getDataURL = "http://192.168.0.101:80/GitSQL/getdata.php";
 
     ArrayList<Bitmap> flyers = new ArrayList<Bitmap>();
 
@@ -45,6 +45,19 @@ public class MainInterface extends AppCompatActivity {
         this.flyer_names = new CustomAdapter(this, flyers);
         this.lv = (ListView) findViewById(R.id.listView);
         this.lv.setAdapter(flyer_names);
+
+        lv.setOnScrollListener(new InfiniteScrollListener(3) {
+            @Override
+            public void loadMore(int page, int totalItemsCount) {
+                index++;
+                RequestParams params = new RequestParams();
+                params.put("index", index);
+                DataResponseHandler responseHandler = new DataResponseHandler(flyers, (CustomAdapter) flyer_names);
+
+                AsyncHttpClient client = new AsyncHttpClient();
+                client.post("http://192.168.0.101:80/GitSQL/getdata.php", params, responseHandler);
+            }
+        });
     }
 
     @Override

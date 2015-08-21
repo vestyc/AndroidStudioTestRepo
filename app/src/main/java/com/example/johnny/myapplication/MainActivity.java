@@ -61,8 +61,8 @@ public class MainActivity extends Activity {
     private final int RESULT_LOAD_IMG = 213;
     private static final int REQUEST_IMG_CAPTURE = 214;
 
-    private final String webserviceURL = "http://192.168.0.101:80/GitSQL/sendimage.php";
-    private final String getDataURL = "http://192.168.0.101:80/GitSQL/getdata.php";
+    private final String webserviceURL = "http://10.0.2.2:80/GitSQL/sendimage.php";
+    private final String getDataURL = "http://10.0.2.2:80/GitSQL/getdata.php";
 
 
     @Override
